@@ -60,9 +60,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     else:
         await update.message.reply_text("Please send a valid wallet address.")
 
-# --- Health Check ---
-async def health_check(request):
-    return web.Response(text="OK")
+
 
 # --- Main Application ---
 
@@ -77,57 +75,12 @@ def main() -> None:
         # Asynchronous setup for production (webhook with health check)
 
         async def run_production():
-
             """Runs the bot in production mode."""
 
-
-
-            async def on_startup(app: Application) -> None:
-
-                """Start the health check server."""
-
-                health_app = web.Application()
-
-                health_app.router.add_get("/", health_check)
-
-                runner = web.AppRunner(health_app)
-
-                await runner.setup()
-
-                port = int(os.environ.get("PORT", 10000))
-
-                health_check_site = web.TCPSite(runner, "0.0.0.0", port)
-
-                await health_check_site.start()
-
-                app.bot_data["health_check_runner"] = runner
-
-
-
-            async def on_shutdown(app: Application) -> None:
-
-                """Stop the health check server."""
-
-                runner = app.bot_data.get("health_check_runner")
-
-                if runner:
-
-                    await runner.cleanup()
-
-
-
             application = (
-
                 Application.builder()
-
                 .token(TELEGRAM_BOT_TOKEN)
-
-                .post_init(on_startup)
-
-                .post_shutdown(on_shutdown)
-
                 .build()
-
             )
 
 
