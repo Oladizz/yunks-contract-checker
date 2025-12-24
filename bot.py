@@ -120,9 +120,13 @@ async def main() -> None:
 
 if __name__ == "__main__":
     try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
+        loop = asyncio.get_event_loop()
+    except RuntimeError: # This will be raised if no event loop is set in the current OS thread
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-
-    loop.run_until_complete(main())
+    
+    # Check if the loop is already running, if so, schedule the task
+    if loop.is_running():
+        loop.create_task(main())
+    else:
+        loop.run_until_complete(main())
