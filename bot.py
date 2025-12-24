@@ -2,7 +2,7 @@ import json
 import asyncio
 import os
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 from web3 import Web3
 
 # --- Configuration ---
@@ -26,16 +26,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Sends a welcome message when the /start command is issued."""
     await update.message.reply_text(
         "Welcome to the NFT Balance Checker Bot!\n"
-        "Use /check <wallet_address> to check the NFT balance."
+        "Just send me a wallet address to check its NFT balance."
     )
 
-async def check_balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Checks the NFT balance for a given wallet address."""
-    if not context.args:
-        await update.message.reply_text("Please provide a wallet address after the /check command.")
-        return
-
-    wallet_address_input = context.args[0]
+async def _check_balance_helper(wallet_address_input: str, update: Update) -> None:
+    """Helper function to check NFT balance."""
     print(f"Received wallet address: {wallet_address_input}")
     
     try:
@@ -55,12 +50,21 @@ async def check_balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         print(f"Error calling contract function: {e}")
         await update.message.reply_text("An error occurred while checking the balance. Please check the logs for more details.")
 
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle text messages to check for wallet addresses."""
+    message_text = update.message.text
+    # Simple check if the message looks like a wallet address
+    if message_text.startswith("0x") and len(message_text) == 42:
+        await _check_balance_helper(message_text, update)
+    else:
+        await update.message.reply_text("Please send a valid wallet address.")
+
 def main() -> None:
     """Start the bot."""
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("check", check_balance))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     if PRODUCTION:
         port = int(os.environ.get('PORT', 8080))
