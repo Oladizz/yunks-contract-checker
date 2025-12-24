@@ -77,7 +77,8 @@ def main() -> None:
 
     if PRODUCTION:
         port = int(os.environ.get('PORT', 8080))
-        webhook_url = f"https://yunks-contract-checker.onrender.com/{TELEGRAM_BOT_TOKEN}"
+        webhook_base_url = os.environ.get("WEBHOOK_BASE_URL", "https://yunks-contract-checker.onrender.com")
+        webhook_url = f"{webhook_base_url}/{TELEGRAM_BOT_TOKEN}"
         
         # Add the health check handler
         application._web_app.add_handlers(r".*", [(r"/", HealthCheckHandler)])

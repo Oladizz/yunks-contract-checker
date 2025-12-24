@@ -10,3 +10,5 @@ services:
         value: "true"
       - key: TELEGRAM_BOT_TOKEN
         value: "7843191744:AAFTgk1EKhgahjaKuDGtBh-r73ndpCDHeFs"
+      - key: WEBHOOK_BASE_URL
+        value: "https://yunks-contract-checker.onrender.com"
