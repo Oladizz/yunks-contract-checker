@@ -4,6 +4,7 @@ services:
     name: yunks-contract-checker
     env: docker
     plan: free
+    healthCheckPath: /
 
     envVars:
       - key: PRODUCTION

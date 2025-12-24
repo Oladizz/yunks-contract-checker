@@ -62,96 +62,59 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 
+# --- Health Check ---
+async def health_check(_: web.Request) -> web.Response:
+    return web.Response(text="OK")
+
+
 # --- Main Application ---
-
 def main() -> None:
-
     """Set up and run the bot."""
 
-
-
     if PRODUCTION:
-
-        # Asynchronous setup for production (webhook with health check)
-
-        async def run_production():
-            """Runs the bot in production mode."""
-
-            application = (
-                Application.builder()
-                .token(TELEGRAM_BOT_TOKEN)
-                .build()
-            )
-
-
-
-            application.add_handler(CommandHandler("start", start))
-
-            application.add_handler(
-
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
-
-            )
-
-
-
-            port = int(os.environ.get("PORT", 10000))
-
-            webhook_base_url = os.environ.get(
-
-                "WEBHOOK_BASE_URL", "https://yunks-contract-checker.onrender.com"
-
-            )
-
-            webhook_url = f"{webhook_base_url}/{TELEGRAM_BOT_TOKEN}"
-
-
-
-            print(
-
-                f"Starting bot in production mode on port {port} with webhook {webhook_url}"
-
-            )
-
-            await application.run_webhook(
-
-                listen="0.0.0.0", port=port, url_path=TELEGRAM_BOT_TOKEN, webhook_url=webhook_url
-
-            )
-
-
-
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(run_production())
-
-
-
-    else:
-
-        # Synchronous-like setup for development (polling)
-
+        # Manual aiohttp server setup for production
         application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-
-
-
         application.add_handler(CommandHandler("start", start))
-
         application.add_handler(
-
             MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
-
         )
 
+        async def on_startup(app: web.Application):
+            port = int(os.environ.get("PORT", 10000))
+            webhook_base_url = os.environ.get(
+                "WEBHOOK_BASE_URL", "https://yunks-contract-checker.onrender.com"
+            )
+            webhook_url = f"{webhook_base_url}/{TELEGRAM_BOT_TOKEN}"
 
+            await application.initialize()
+            await application.bot.set_webhook(
+                url=webhook_url, allowed_updates=Update.ALL_TYPES
+            )
+
+            bot_app = await application.create_aiohttp_app()
+            app.add_subapp(f"/{TELEGRAM_BOT_TOKEN}", bot_app)
+            print(f"Bot webhook is listening at /{TELEGRAM_BOT_TOKEN}")
+
+        main_app = web.Application()
+        main_app.router.add_get("/", health_check)
+        main_app.on_startup.append(on_startup)
+
+        port = int(os.environ.get("PORT", 10000))
+        print(f"Health check at / and starting server on port {port}")
+        web.run_app(main_app, host="0.0.0.0", port=port)
+
+    else:
+        # Synchronous-like setup for development (polling)
+        application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+        )
 
         print("Starting bot in development mode with polling.")
-
         application.run_polling()
 
 
-
-
-
 if __name__ == "__main__":
-
     main()
