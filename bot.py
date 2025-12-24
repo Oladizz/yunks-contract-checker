@@ -62,9 +62,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 
-# --- Health Check ---
+# --- Webhook Handlers ---
 async def health_check(_: web.Request) -> web.Response:
+    """A simple health check endpoint."""
     return web.Response(text="OK")
+
+
+async def telegram_webhook(request: web.Request, application: Application) -> web.Response:
+    """Handles incoming telegram updates."""
+    try:
+        data = await request.json()
+        update = Update.de_json(data, application.bot)
+        await application.process_update(update)
+        return web.Response()
+    except json.JSONDecodeError:
+        return web.Response(text="Invalid JSON", status=400)
 
 
 # --- Main Application ---
@@ -80,27 +92,28 @@ def main() -> None:
         )
 
         async def on_startup(app: web.Application):
-            port = int(os.environ.get("PORT", 10000))
+            """Sets the webhook on startup."""
             webhook_base_url = os.environ.get(
                 "WEBHOOK_BASE_URL", "https://yunks-contract-checker.onrender.com"
             )
             webhook_url = f"{webhook_base_url}/{TELEGRAM_BOT_TOKEN}"
-
             await application.initialize()
             await application.bot.set_webhook(
                 url=webhook_url, allowed_updates=Update.ALL_TYPES
             )
-
-            bot_app = await application.create_aiohttp_app()
-            app.add_subapp(f"/{TELEGRAM_BOT_TOKEN}", bot_app)
-            print(f"Bot webhook is listening at /{TELEGRAM_BOT_TOKEN}")
+            print(f"Webhook set to {webhook_url}")
 
         main_app = web.Application()
+        # Pass application object to the webhook handler using a lambda
+        main_app.router.add_post(
+            f"/{TELEGRAM_BOT_TOKEN}",
+            lambda request: telegram_webhook(request, application),
+        )
         main_app.router.add_get("/", health_check)
         main_app.on_startup.append(on_startup)
 
         port = int(os.environ.get("PORT", 10000))
-        print(f"Health check at / and starting server on port {port}")
+        print(f"Starting server on port {port}")
         web.run_app(main_app, host="0.0.0.0", port=port)
 
     else:
