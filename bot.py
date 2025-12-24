@@ -4,7 +4,7 @@ import os
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 from web3 import Web3
-import tornado.web
+from aiohttp import web
 
 # --- Configuration ---
 TELEGRAM_BOT_TOKEN = "7843191744:AAFTgk1EKhgahjaKuDGtBh-r73ndpCDHeFs"
@@ -60,39 +60,49 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     else:
         await update.message.reply_text("Please send a valid wallet address.")
 
-import tornado.web
+# --- Health Check ---
+async def health_check(request):
+    return web.Response(text="OK")
 
-# ... (rest of the configuration and setup is the same)
-
-class HealthCheckHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.write("OK")
-
-def main() -> None:
-    """Start the bot."""
+# --- Main Application ---
+async def main_async() -> None:
+    """Start the bot and the health check server."""
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     if PRODUCTION:
-        port = int(os.environ.get('PORT', 8080))
+        port = int(os.environ.get('PORT', 10000))
         webhook_base_url = os.environ.get("WEBHOOK_BASE_URL", "https://yunks-contract-checker.onrender.com")
         webhook_url = f"{webhook_base_url}/{TELEGRAM_BOT_TOKEN}"
+
+        # Health check server
+        app = web.Application()
+        app.router.add_get("/", health_check)
+        runner = web.AppRunner(app)
+        await runner.setup()
+        health_check_site = web.TCPSite(runner, '0.0.0.0', port)
         
-        # Add the health check handler
-        application._web_app.add_handlers(r".*", [(r"/", HealthCheckHandler)])
-        
+        # Run bot and health check server concurrently
         print(f"Starting bot in production mode on port {port} with webhook {webhook_url}")
-        application.run_webhook(
-            listen="0.0.0.0",
-            port=port,
-            url_path=TELEGRAM_BOT_TOKEN,
-            webhook_url=webhook_url
+        await asyncio.gather(
+            application.run_webhook(
+                listen="0.0.0.0",
+                port=port,
+                url_path=TELEGRAM_BOT_TOKEN,
+                webhook_url=webhook_url
+            ),
+            health_check_site.start()
         )
+
     else:
         print("Starting bot in development mode with polling.")
         application.run_polling()
+
+def main() -> None:
+    """Wrapper for running the async main function."""
+    asyncio.run(main_async())
 
 if __name__ == "__main__":
     main()

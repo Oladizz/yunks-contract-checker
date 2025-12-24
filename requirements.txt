@@ -1,4 +1,3 @@
 python-telegram-bot[webhooks]
 web3
 aiohttp
-tornado
