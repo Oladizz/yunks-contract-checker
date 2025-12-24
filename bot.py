@@ -102,7 +102,12 @@ async def main_async() -> None:
 
 def main() -> None:
     """Wrapper for running the async main function."""
-    asyncio.run(main_async())
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:  # No event loop is running
+        asyncio.run(main_async())
+    else:  # Event loop is already running
+        loop.run_until_complete(main_async())
 
 if __name__ == "__main__":
     main()
