@@ -168,7 +168,8 @@ def main() -> None:
 
 
 
-        asyncio.run(run_production())
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(run_production())
 
 
 
