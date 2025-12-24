@@ -1,6 +1,6 @@
-
 import json
 import asyncio
+import os
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from web3 import Web3
@@ -9,7 +9,12 @@ from web3 import Web3
 TELEGRAM_BOT_TOKEN = "7843191744:AAFTgk1EKhgahjaKuDGtBh-r73ndpCDHeFs"
 RPC_URL = "https://rpc.ankr.com/eth"
 CONTRACT_ADDRESS = "0x3e6A286f005AC829b95DD102328E47A321D4FE4C"
-with open("nft_balance_bot/nft_abi.json") as f:
+PRODUCTION = os.environ.get("PRODUCTION", "false").lower() == "true"
+
+# -- Load ABI ---
+script_dir = os.path.dirname(__file__)
+abi_path = os.path.join(script_dir, 'nft_abi.json')
+with open(abi_path) as f:
     CONTRACT_ABI = json.load(f)
 
 # --- Web3 Setup ---
@@ -49,8 +54,19 @@ def main() -> None:
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("check", check_balance))
 
-    print("Bot started...")
-    application.run_polling()
+    if PRODUCTION:
+        port = int(os.environ.get('PORT', 8080))
+        webhook_url = f"https://yunks-contract-checker.onrender.com/{TELEGRAM_BOT_TOKEN}"
+        print(f"Starting bot in production mode on port {port} with webhook {webhook_url}")
+        application.run_webhook(
+            listen="0.0.0.0",
+            port=port,
+            url_path=TELEGRAM_BOT_TOKEN,
+            webhook_url=webhook_url
+        )
+    else:
+        print("Starting bot in development mode with polling.")
+        application.run_polling()
 
 if __name__ == "__main__":
     main()
