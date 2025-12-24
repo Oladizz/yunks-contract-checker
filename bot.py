@@ -7,7 +7,7 @@ from web3 import Web3
 
 # --- Configuration ---
 TELEGRAM_BOT_TOKEN = "7843191744:AAFTgk1EKhgahjaKuDGtBh-r73ndpCDHeFs"
-RPC_URL = "https://rpc.ankr.com/eth"
+RPC_URL = "https://base.publicnode.com"
 CONTRACT_ADDRESS = "0x3e6A286f005AC829b95DD102328E47A321D4FE4C"
 PRODUCTION = os.environ.get("PRODUCTION", "false").lower() == "true"
 
@@ -35,17 +35,25 @@ async def check_balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.message.reply_text("Please provide a wallet address after the /check command.")
         return
 
-    wallet_address = context.args[0]
-    if not w3.is_address(wallet_address):
-        await update.message.reply_text("Invalid wallet address.")
+    wallet_address_input = context.args[0]
+    print(f"Received wallet address: {wallet_address_input}")
+    
+    try:
+        # Always convert to a checksum address
+        wallet_address = Web3.to_checksum_address(wallet_address_input)
+        print(f"Checksummed wallet address: {wallet_address}")
+    except ValueError:
+        await update.message.reply_text("Invalid wallet address. Please provide a valid Ethereum wallet address.")
         return
 
     try:
+        print(f"Checking balance for {wallet_address} on contract {CONTRACT_ADDRESS}")
         balance = contract.functions.balanceOf(wallet_address).call()
+        print(f"Balance: {balance}")
         await update.message.reply_text(f"The wallet {wallet_address} holds {balance} NFTs from this collection.")
     except Exception as e:
-        print(f"Error: {e}")
-        await update.message.reply_text("An error occurred while checking the balance.")
+        print(f"Error calling contract function: {e}")
+        await update.message.reply_text("An error occurred while checking the balance. Please check the logs for more details.")
 
 def main() -> None:
     """Start the bot."""
