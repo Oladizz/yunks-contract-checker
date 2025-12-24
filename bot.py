@@ -65,49 +65,58 @@ async def health_check(request):
     return web.Response(text="OK")
 
 # --- Main Application ---
-async def main_async() -> None:
-    """Start the bot and the health check server."""
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+async def main() -> None:
+    """Set up and run the bot."""
+
+    # Health check server
+    async def on_startup(app: Application) -> None:
+        """Start the health check server."""
+        if PRODUCTION:
+            health_app = web.Application()
+            health_app.router.add_get("/", health_check)
+            runner = web.AppRunner(health_app)
+            await runner.setup()
+            port = int(os.environ.get("PORT", 10000))
+            health_check_site = web.TCPSite(runner, "0.0.0.0", port)
+            await health_check_site.start()
+            app.bot_data["health_check_runner"] = runner
+
+    async def on_shutdown(app: Application) -> None:
+        """Stop the health check server."""
+        if PRODUCTION:
+            runner = app.bot_data.get("health_check_runner")
+            if runner:
+                await runner.cleanup()
+
+    application = (
+        Application.builder()
+        .token(TELEGRAM_BOT_TOKEN)
+        .post_init(on_startup)
+        .post_shutdown(on_shutdown)
+        .build()
+    )
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     if PRODUCTION:
-        port = int(os.environ.get('PORT', 10000))
-        webhook_base_url = os.environ.get("WEBHOOK_BASE_URL", "https://yunks-contract-checker.onrender.com")
+        port = int(os.environ.get("PORT", 10000))
+        webhook_base_url = os.environ.get(
+            "WEBHOOK_BASE_URL", "https://yunks-contract-checker.onrender.com"
+        )
         webhook_url = f"{webhook_base_url}/{TELEGRAM_BOT_TOKEN}"
 
-        # Health check server
-        app = web.Application()
-        app.router.add_get("/", health_check)
-        runner = web.AppRunner(app)
-        await runner.setup()
-        health_check_site = web.TCPSite(runner, '0.0.0.0', port)
-        
-        # Run bot and health check server concurrently
-        print(f"Starting bot in production mode on port {port} with webhook {webhook_url}")
-        await asyncio.gather(
-            application.run_webhook(
-                listen="0.0.0.0",
-                port=port,
-                url_path=TELEGRAM_BOT_TOKEN,
-                webhook_url=webhook_url
-            ),
-            health_check_site.start()
+        print(
+            f"Starting bot in production mode on port {port} with webhook {webhook_url}"
+        )
+        await application.run_webhook(
+            listen="0.0.0.0", port=port, url_path=TELEGRAM_BOT_TOKEN, webhook_url=webhook_url
         )
 
     else:
         print("Starting bot in development mode with polling.")
-        application.run_polling()
+        await application.run_polling()
 
-def main() -> None:
-    """Wrapper for running the async main function."""
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:  # No event loop is running
-        asyncio.run(main_async())
-    else:  # Event loop is already running
-        loop.run_until_complete(main_async())
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
