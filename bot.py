@@ -4,6 +4,7 @@ import os
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 from web3 import Web3
+import tornado.web
 
 # --- Configuration ---
 TELEGRAM_BOT_TOKEN = "7843191744:AAFTgk1EKhgahjaKuDGtBh-r73ndpCDHeFs"
@@ -59,6 +60,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     else:
         await update.message.reply_text("Please send a valid wallet address.")
 
+import tornado.web
+
+# ... (rest of the configuration and setup is the same)
+
+class HealthCheckHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.write("OK")
+
 def main() -> None:
     """Start the bot."""
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
@@ -69,6 +78,10 @@ def main() -> None:
     if PRODUCTION:
         port = int(os.environ.get('PORT', 8080))
         webhook_url = f"https://yunks-contract-checker.onrender.com/{TELEGRAM_BOT_TOKEN}"
+        
+        # Add the health check handler
+        application._web_app.add_handlers(r".*", [(r"/", HealthCheckHandler)])
+        
         print(f"Starting bot in production mode on port {port} with webhook {webhook_url}")
         application.run_webhook(
             listen="0.0.0.0",
