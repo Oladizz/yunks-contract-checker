@@ -7,7 +7,11 @@ from web3 import Web3
 from aiohttp import web
 
 # --- Configuration ---
+<<<<<<< HEAD
 TELEGRAM_BOT_TOKEN = "8478896729:AAHjParJUsyZkV3GmzBA78wLFQUMQSxAE_E"
+=======
+TELEGRAM_BOT_TOKEN = "7843191744:AAFTgk1EKhgahjaKuDGtBh-r73ndpCDHeFs"
+>>>>>>> 74a848e1776a4a4811652093096b6c0d78bd106b
 RPC_URL = "https://base.publicnode.com"
 CONTRACT_ADDRESS = "0x3e6A286f005AC829b95DD102328E47A321D4FE4C"
 PRODUCTION = os.environ.get("PRODUCTION", "false").lower() == "true"
