@@ -7,7 +7,7 @@ from web3 import Web3
 from aiohttp import web
 
 # --- Configuration ---
-<<<<<<< HEAD
+
 TELEGRAM_BOT_TOKEN = "7843191744:AAFTgk1EKhgahjaKuDGtBh-r73ndpCDHeFs"
 RPC_URL = "https://base.publicnode.com"
 CONTRACT_ADDRESS = "0x3e6A286f005AC829b95DD102328E47A321D4FE4C"
